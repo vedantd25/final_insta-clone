@@ -41,36 +41,7 @@ const likesCountMap = new Map();
 });
 
   // Listen for 'addComment' event from client
-  useEffect(() => {
-    // Create a new socket instance and connect to the server
-    const newSocket = io('http://localhost:3001');
-    setSocket(newSocket);
-
-    // Listen for 'commentCountUpdated' event from server
-    newSocket.on('commentCountUpdated', ({ postId, count }) => {
-      // Update comment count when event received from server
-      if (postId === id) {
-        setCommentCount(count);
-      }
-    });
-
-    return () => {
-      // Disconnect from the server when the component unmounts
-      newSocket.disconnect();
-    };
-  }, [id]);
-
-  useEffect(() => {
-    // Fetch initial comment count from Firestore
-    const unsubscribe = onSnapshot(collection(db, 'posts', id, 'comments'), (snapshot) => {
-      setCommentCount(snapshot.size);
-    });
-
-    return () => {
-      // Unsubscribe from Firestore listener when component unmounts
-      unsubscribe();
-    };
-  }, [db, id]);
+  
 
 httpServer.listen(3001, () => {
   console.log('Socket.IO server running on port 3001');
