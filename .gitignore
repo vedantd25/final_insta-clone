@@ -36,5 +36,4 @@ yarn-error.log*
 next-env.d.ts
 .env
 src/app/server/insta-next-420202-firebase-adminsdk-1cqgf-d8af99a1c0.json
-firebase.js
-src/app/server/server.js
+
