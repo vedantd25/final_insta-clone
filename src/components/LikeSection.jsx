@@ -1,14 +1,29 @@
-import { useEffect, useState } from 'react';
+'use client';
+
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getFirestore,
+  onSnapshot,
+  setDoc,
+} from 'firebase/firestore';
 import { io } from 'socket.io-client';
 import { useSession } from 'next-auth/react';
+import { useEffect, useState } from 'react';
 import { HiOutlineHeart, HiHeart } from 'react-icons/hi';
+import { app } from '../firebase';
 
 export default function LikeSection({ id }) {
+  const { data: session } = useSession();
+  const [hasLiked, setHasLiked] = useState(false);
+  const [likes, setLikes] = useState([]);
+  const db = getFirestore(app);
+
+  
   const [likesCount, setLikesCount] = useState(0);
   const [socket, setSocket] = useState(null);
-  const { data: session } = useSession();
-  const [hasLiked, setHasLiked] = useState(false); // Initialize hasLiked state
-
+  
   useEffect(() => {
     // Create a new socket instance and connect to the server
     const newSocket = io('http://localhost:3001', { transports: ['websocket'] });
@@ -34,54 +49,6 @@ export default function LikeSection({ id }) {
       });
     }
 
-    useEffect(() => {
-      if (session) {
-        // Fetch the user's liked status for the post from Firestore
-        const fetchUserLikedStatus = async () => {
-          try {
-            const docRef = doc(db, 'likes', id);
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-              const data = docSnap.data();
-              const userLiked = data[session.user.id] || false;
-              setHasLiked(userLiked);
-            }
-          } catch (error) {
-            console.error('Error fetching user liked status:', error);
-          }
-        };
-  
-        fetchUserLikedStatus();
-      }
-    }, [session, id]);
-  
-    const likePost = async () => {
-      // Toggle hasLiked state
-      setHasLiked(!hasLiked);
-  
-      // Update likes count in Firestore
-      try {
-        const docRef = doc(db, 'likes', id);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          const newLikesCount = hasLiked ? likesCount - 1 : likesCount + 1;
-          await updateDoc(docRef, {
-            [session.user.id]: !hasLiked,
-            likesCount: newLikesCount,
-          });
-          setLikesCount(newLikesCount);
-  
-          // Emit like event to server
-          if (socket) {
-            socket.emit('like', id, !hasLiked);
-          }
-        }
-      } catch (error) {
-        console.error('Error updating likes count:', error);
-      }
-    };
-
     return () => {
       // Remove all event listeners when component unmounts
       if (socket) {
@@ -100,15 +67,33 @@ export default function LikeSection({ id }) {
     }
   }, [session]); // Update hasLiked when session changes
 
-  const likePost = () => {
-    // Toggle hasLiked state
-    setHasLiked(!hasLiked);
 
-    // Emit like event to server
-    if (socket) {
-      socket.emit('like', id, !hasLiked);
+  useEffect(() => {
+    onSnapshot(collection(db, 'posts', id, 'likes'), (snapshot) => {
+      setLikes(snapshot.docs);
+    });
+  }, [db]);
+
+  useEffect(() => {
+    if (likes.findIndex((like) => like.id === session?.user?.uid) !== -1) {
+      setHasLiked(true);
+    } else {
+      setHasLiked(false);
     }
-  };
+  }, [likes]);
+
+  async function likePost() {
+    console.log(db, id, 'likes', session?.user?.uid);
+    if (hasLiked) {
+      await deleteDoc(doc(db, 'posts', id, 'likes', session?.user?.uid));
+    } else {
+      await setDoc(doc(db, 'posts', id, 'likes', session?.user?.uid), {
+        username: session?.user?.username,
+      });
+    }
+  }
+
+
 
   return (
     <div>
@@ -126,8 +111,11 @@ export default function LikeSection({ id }) {
                 className='cursor-pointer text-3xl  hover:scale-125 transition-transform duration-200 ease-out'
               />
             )}
-            {/* Display likes count */}
-            <p className='text-gray-500'>{likesCount} {likesCount === 1 ? 'like' : 'likes'}</p>
+            {likes.length > 0 && (
+              <p className='text-gray-500'>
+                {likes.length} {likes.length === 1 ? 'like' : 'likes'}
+              </p>
+            )}
           </div>
         </div>
       )}
