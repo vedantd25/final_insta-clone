@@ -2,7 +2,7 @@ const { createServer } = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors'); 
 const { addDoc, collection, getFirestore, onSnapshot } = require('firebase/firestore');
-const { app } = require('./firebase');
+const { app } = require('../../firebase');
 const httpServer = createServer();
 
 const io = new Server(httpServer, {

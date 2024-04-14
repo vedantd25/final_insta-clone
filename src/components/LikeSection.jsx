@@ -34,6 +34,54 @@ export default function LikeSection({ id }) {
       });
     }
 
+    useEffect(() => {
+      if (session) {
+        // Fetch the user's liked status for the post from Firestore
+        const fetchUserLikedStatus = async () => {
+          try {
+            const docRef = doc(db, 'likes', id);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+              const data = docSnap.data();
+              const userLiked = data[session.user.id] || false;
+              setHasLiked(userLiked);
+            }
+          } catch (error) {
+            console.error('Error fetching user liked status:', error);
+          }
+        };
+  
+        fetchUserLikedStatus();
+      }
+    }, [session, id]);
+  
+    const likePost = async () => {
+      // Toggle hasLiked state
+      setHasLiked(!hasLiked);
+  
+      // Update likes count in Firestore
+      try {
+        const docRef = doc(db, 'likes', id);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const newLikesCount = hasLiked ? likesCount - 1 : likesCount + 1;
+          await updateDoc(docRef, {
+            [session.user.id]: !hasLiked,
+            likesCount: newLikesCount,
+          });
+          setLikesCount(newLikesCount);
+  
+          // Emit like event to server
+          if (socket) {
+            socket.emit('like', id, !hasLiked);
+          }
+        }
+      } catch (error) {
+        console.error('Error updating likes count:', error);
+      }
+    };
+
     return () => {
       // Remove all event listeners when component unmounts
       if (socket) {
